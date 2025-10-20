@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realistic Facebook Comment Simulator</title>
+    <style>
+        body {
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            gap: 30px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            flex-wrap: wrap;
+        }
+
+        .mobile-screen {
+            width: 100%;
+            max-width: 420px;
+            height: 85vh;
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 12px 16px;
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            border-bottom: 1px solid #dddfe2;
+        }
+
+        .comments-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 12px 16px 80px;
+        }
+
+        .comment-thread {
+            display: flex;
+            margin-bottom: 16px;
+            align-items: flex-start;
+        }
+
+        .profile-pic {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin-right: 8px;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+        
+        .comment-main {
+            flex-grow: 1;
+        }
+
+        .comment-bubble {
+            background-color: #f0f2f5;
+            padding: 8px 12px;
+            border-radius: 18px;
+        }
+
+        .username {
+            font-weight: 600;
+            font-size: 13px;
+            color: #050505;
+        }
+
+        .comment-text {
+            font-size: 15px;
+            line-height: 1.3;
+            color: #050505;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .comment-actions {
+            display: flex;
+            gap: 16px;
+            padding-left: 4px;
+            margin-top: 4px;
+            font-size: 12px;
+            color: #606770;
+            font-weight: 600;
+        }
+        .action-link { cursor: pointer; }
+
+        .comment-input-area {
+            background-color: #ffffff;
+            padding: 8px 12px;
+            border-top: 1px solid #dddfe2;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .mobile-screen .comment-input-area{
+             width: calc(100% - 2px);
+        }
+
+        #comment-input {
+            flex-grow: 1; border: none; background-color: #f0f2f5;
+            border-radius: 18px; padding: 8px 15px; font-size: 15px;
+            outline: none; font-family: inherit;
+        }
+        #send-btn {
+            background: none; border: none; cursor: pointer; padding: 5px;
+            color: #1877f2; font-weight: 600; font-size: 15px;
+        }
+        
+        /* Editor Panel */
+        .editor-panel {
+            width: 350px;
+            height: 85vh;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+        .editor-panel h3 { margin-top: 0; text-align: center; }
+        .editor-section { border: 1px solid #ddd; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
+        .editor-section h4 { margin: 0 0 10px; }
+        .input-group { margin-bottom: 10px; }
+        .input-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #606770; }
+        .input-group input[type="text"], .input-group textarea {
+            width: 100%; padding: 8px; border: 1px solid #ccc;
+            border-radius: 4px; box-sizing: border-box;
+        }
+        .editor-panel button {
+            width: 100%; padding: 10px; border: none; border-radius: 6px;
+            font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 10px;
+            color: white; background-color: #42b72a;
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-screen">
+        <div class="header">Comments</div>
+        <div class="comments-container" id="comments-container"></div>
+        <div class="comment-input-area">
+            <img src="" alt="pfp" class="profile-pic" id="user-profile-pic">
+            <input type="text" id="comment-input" placeholder="Write a comment...">
+            <button id="send-btn">Send</button>
+        </div>
+    </div>
+
+    <div class="editor-panel">
+        <h3>Editor Panel</h3>
+        <div id="editor-user-profile"></div>
+        <hr>
+        <div id="editor-controls-container"></div>
+        <button id="add-ai-comment-btn">Add AI Comment</button>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // --- DOM ELEMENTS ---
+    const commentsContainer = document.getElementById('comments-container');
+    const userProfilePic = document.getElementById('user-profile-pic');
+    const commentInput = document.getElementById('comment-input');
+    const sendBtn = document.getElementById('send-btn');
+    const editorControlsContainer = document.getElementById('editor-controls-container');
+    const editorUserProfile = document.getElementById('editor-user-profile');
+    const addAiCommentBtn = document.getElementById('add-ai-comment-btn');
+
+    // --- AI DATA ---
+    const aiMaleNames = [
+        "Ahasan Habib", "Sabbir Hossain", "Raj Sharma", "Rahul Khan", "Amit Singh", "Fahim Chowdhury",
+        "Vikram Kumar", "Jony Parvez", "Rohan Ahmed", "Sumit Das", "Zahid Hasan", "Arif Islam"
+    ];
+    // Curated list of male images (20-35 age, face visible)
+    const aiMalePfps = [
+        'https://i.ibb.co/3zdJgV8/male1.jpg', 'https://i.ibb.co/567YF0R/male2.jpg', 'https://i.ibb.co/qY7L16z/male3.jpg',
+        'https://i.ibb.co/Q8Q8Syz/male4.jpg', 'https://i.ibb.co/JqjJzZ1/male5.jpg', 'https://i.ibb.co/pwnL1Xv/male6.jpg',
+        'https://i.ibb.co/8Y5sMjt/male7.jpg', 'https://i.ibb.co/8cVfc1N/male8.jpg', 'https://i.ibb.co/Y05b4kL/male9.jpg'
+    ];
+    let comments = [];
+    let currentUserProfile;
+
+    // --- FUNCTIONS ---
+    function generateRandomProfile() {
+        const name = aiMaleNames[Math.floor(Math.random() * aiMaleNames.length)];
+        const pfp = aiMalePfps[Math.floor(Math.random() * aiMalePfps.length)];
+        return { name, pfp };
+    }
+
+    function render() {
+        // Render Comments in Mobile View
+        commentsContainer.innerHTML = '';
+        comments.forEach(comment => {
+            const el = document.createElement('div');
+            el.className = 'comment-thread';
+            el.innerHTML = `
+                <img src="${comment.pfp}" alt="pfp" class="profile-pic">
+                <div class="comment-main">
+                    <div class="comment-bubble">
+                        <div class="username">${comment.name}</div>
+                        <div class="comment-text">${comment.text}</div>
+                    </div>
+                    <div class="comment-actions">
+                        <span class="time">${comment.time}</span>
+                        <span class="action-link">Like</span>
+                        <span class="action-link">Reply</span>
+                    </div>
+                </div>`;
+            commentsContainer.appendChild(el);
+        });
+
+        // Render User Profile Editor
+        editorUserProfile.innerHTML = `
+            <div class="editor-section">
+                <h4>Your Profile</h4>
+                <div class="input-group">
+                    <label>Profile Picture</label>
+                    <input type="file" class="pfp-input" data-id="user" accept="image/*">
+                </div>
+                <div class="input-group">
+                    <label>Your Name</label>
+                    <input type="text" class="name-input" data-id="user" value="${currentUserProfile.name}">
+                </div>
+            </div>`;
+
+        // Render Comment Editors
+        editorControlsContainer.innerHTML = '';
+        comments.forEach(comment => {
+            const el = document.createElement('div');
+            el.className = 'editor-section';
+            el.innerHTML = `
+                <h4>Comment by ${comment.name.split(' ')[0]}</h4>
+                <div class="input-group">
+                    <label>Profile Picture</label>
+                    <input type="file" class="pfp-input" data-id="${comment.id}" accept="image/*">
+                </div>
+                <div class="input-group">
+                    <label>Username</label>
+                    <input type="text" class="name-input" data-id="${comment.id}" value="${comment.name}">
+                </div>
+                <div class="input-group">
+                    <label>Comment Text</label>
+                    <textarea class="text-input" data-id="${comment.id}" rows="3">${comment.text}</textarea>
+                </div>`;
+            editorControlsContainer.appendChild(el);
+        });
+    }
+    
+    function updateProfileDisplay(){
+        userProfilePic.src = currentUserProfile.pfp;
+        commentInput.placeholder = `Write as ${currentUserProfile.name.split(' ')[0]}...`;
+    }
+
+    function addComment(profile, text, time) {
+        const newComment = {
+            id: Date.now(),
+            name: profile.name,
+            pfp: profile.pfp,
+            text: text,
+            time: time
+        };
+        comments.push(newComment);
+        render();
+    }
+
+    // --- EVENT LISTENERS ---
+    sendBtn.addEventListener('click', () => {
+        const text = commentInput.value.trim();
+        if (text) {
+            addComment(currentUserProfile, text, 'Just now');
+            commentInput.value = '';
+            commentsContainer.scrollTop = commentsContainer.scrollHeight;
+        }
+    });
+    
+    commentInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendBtn.click();
+    });
+
+    addAiCommentBtn.addEventListener('click', () => {
+        const textOptions = ["Awesome!", "Nice one!", "এটা দারুণ হয়েছে!", "emne drag korte gie eder ros ber hoye jay na?", "khub sundor lagche."];
+        const randomText = textOptions[Math.floor(Math.random() * textOptions.length)];
+        addComment(generateRandomProfile(), randomText, `${Math.floor(Math.random() * 59) + 1}m`);
+        commentsContainer.scrollTop = commentsContainer.scrollHeight;
+    });
+
+    // Event Delegation for Editors
+    document.querySelector('.editor-panel').addEventListener('input', (e) => {
+        const id = e.target.dataset.id;
+        if (id === 'user') { // Updating user profile
+            if(e.target.classList.contains('name-input')){
+                currentUserProfile.name = e.target.value;
+                updateProfileDisplay();
+            }
+        } else { // Updating a comment
+            const comment = comments.find(c => c.id == id);
+            if (!comment) return;
+            if (e.target.classList.contains('name-input')) comment.name = e.target.value;
+            if (e.target.classList.contains('text-input')) comment.text = e.target.value;
+            render();
+        }
+    });
+
+    document.querySelector('.editor-panel').addEventListener('change', (e) => {
+        if (e.target.classList.contains('pfp-input')) {
+            const id = e.target.dataset.id;
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const newPfp = event.target.result;
+                    if (id === 'user') {
+                        currentUserProfile.pfp = newPfp;
+                        updateProfileDisplay();
+                    } else {
+                        const comment = comments.find(c => c.id == id);
+                        if (comment) comment.pfp = newPfp;
+                    }
+                    render();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    });
+
+    // --- INITIALIZATION ---
+    function initialize() {
+        currentUserProfile = generateRandomProfile();
+        updateProfileDisplay();
+
+        const initialComments = ["এমন ডান্স করতে গিয়ে এদের রস বের হয়ে যায়না 🤣🤣", "Group add den keo amakr", "togo kisso hoibo na🤦"];
+        initialComments.forEach((text, i) => {
+            addComment(generateRandomProfile(), text, `${Math.floor(Math.random() * 50) + 5}m`);
+        });
+
+        render();
+    }
+
+    initialize();
+});
+</script>
+
+</body>
+</html>
